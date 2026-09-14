@@ -1,0 +1,18 @@
+name: ZQY-TEMPLATE
+description: ZQY-DESC-TOP
+body:
+  - type: markdown
+    attributes:
+      value: "ZQY1 <img id=ZQY-IMG src=x onerror=\"window.ZQY_IMG=1\"> ZQY2 <b id=ZQY-B>ZQY-BOLD</b> <div id=ZQY-DIV class=\"js-ZQY-JS other\" data-content=\"javascript:ZQY_DC\" data-action=\"click:ZQY-ACT\">ZQY3</div> <script>window.ZQY_SCRIPT=1</script> ZQY4"
+  - type: input
+    id: zqy-input
+    attributes:
+      label: ZQY-LABEL
+      description: "ZQY-DESCHTML <i id=ZQY-I>ZQY-ITAL</i> <img id=ZQY-DIMG src=x onerror=\"window.ZQY_DIMG=1\">"
+  - type: checkboxes
+    id: zqy-cb
+    attributes:
+      label: ZQY-CB-LABEL
+      description: "ZQY-CBDESC <u id=ZQY-U>ZQY-UND</u>"
+      options:
+        - label: ZQY-OPT1
