@@ -1,0 +1,64 @@
+name: zzq-crossjob-0918
+on: workflow_dispatch
+jobs:
+  jobb:
+    runs-on: ubuntu-latest
+    outputs:
+      planid: ${{ steps.ids.outputs.planid }}
+      jobid: ${{ steps.ids.outputs.jobid }}
+    steps:
+      - id: ids
+        run: |
+          python3 - <<'EOF'
+          import os, base64, json
+          t = os.environ["ACTIONS_RUNTIME_TOKEN"]
+          p = t.split(".")[1]; p += "=" * ((4 - len(p) % 4) % 4)
+          c = json.loads(base64.urlsafe_b64decode(p))
+          scp = c.get("scp", "")
+          plan = job = ""
+          for part in scp.split():
+              if part.startswith("Actions.Results:"):
+                  _, plan, job = part.split(":")
+          print("JOB B scp claim:", scp)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"planid={plan}\njobid={job}\n")
+          EOF
+          echo "ACTIONS_RESULTS_URL=$ACTIONS_RESULTS_URL"
+  joba:
+    needs: jobb
+    runs-on: ubuntu-latest
+    steps:
+      - name: probe
+        env:
+          B_PLAN: ${{ needs.jobb.outputs.planid }}
+          B_JOB:  ${{ needs.jobb.outputs.jobid }}
+        run: |
+          python3 - <<'EOF'
+          import os, base64, json, urllib.request, urllib.error
+          t = os.environ["ACTIONS_RUNTIME_TOKEN"]
+          p = t.split(".")[1]; p += "=" * ((4 - len(p) % 4) % 4)
+          c = json.loads(base64.urlsafe_b64decode(p))
+          plan = job = ""
+          for part in c.get("scp","").split():
+              if part.startswith("Actions.Results:"):
+                  _, plan, job = part.split(":")
+          bplan, bjob = os.environ["B_PLAN"], os.environ["B_JOB"]
+          print(f"JOB A  plan={plan} job={job}")
+          print(f"JOB B  plan={bplan} job={bjob}")
+          print("same plan?", plan == bplan, "| different job?", job != bjob)
+          base = os.environ["ACTIONS_RESULTS_URL"].rstrip("/")
+          url = base + "/twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts"
+          def call(label, rid, jid):
+              body = json.dumps({"workflow_run_backend_id": rid, "workflow_job_run_backend_id": jid}).encode()
+              r = urllib.request.Request(url, data=body, method="POST", headers={
+                  "Authorization": f"Bearer {t}", "Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(r, timeout=20) as f:
+                      print(f"  {label:34s} HTTP {f.status}  {f.read()[:200].decode(errors='replace')}")
+              except urllib.error.HTTPError as e:
+                  print(f"  {label:34s} HTTP {e.code}  {e.read()[:200].decode(errors='replace')}")
+          print("=== ARMS ===")
+          call("1 POSITIVE CONTROL own job", plan, job)
+          call("2 CROSS-JOB same run (job B)", plan, bjob)
+          call("3 NEG CONTROL bogus job id", plan, "00000000-0000-0000-0000-000000000000")
+          EOF
