@@ -1,0 +1,42 @@
+name: zzq-dupname-0918
+on: workflow_dispatch
+jobs:
+  j1:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir -p out
+          echo "MARKER-ALPHA-job1-zzq0918-aaaaaaaaaaaaaaaaaaaaaaaa" > out/m.txt
+          wc -c out/m.txt; sha256sum out/m.txt
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: zzq-dup-0918
+          path: out/
+  j2:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir -p out
+          echo "MARKER-BRAVO-job2-zzq0918-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" > out/m.txt
+          wc -c out/m.txt; sha256sum out/m.txt
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: zzq-dup-0918
+          path: out/
+  list:
+    needs: [j1, j2]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const r = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId });
+            console.log("ARTIFACT_COUNT:", r.data.total_count);
+            for (const a of r.data.artifacts) {
+              console.log("ARTIFACT id=" + a.id + " name=" + a.name + " size=" + a.size_in_bytes +
+                          " digest=" + (a.digest || "none") + " expires=" + a.expires_at);
+            }
